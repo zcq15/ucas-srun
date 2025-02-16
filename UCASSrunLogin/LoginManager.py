@@ -16,9 +16,9 @@ header={
 		
 class LoginManager:
 	def __init__(self,
-		url_login_page = "http://10.0.0.55/srun_portal_pc?ac_id=8&theme=bit",
-		url_get_challenge_api = "http://10.0.0.55/cgi-bin/get_challenge",
-		url_login_api = "http://10.0.0.55/cgi-bin/srun_portal",
+		url_login_page = "https://portal.ucas.ac.cn/srun_portal_pc?ac_id=1&theme=pro",
+		url_get_challenge_api = "https://portal.ucas.ac.cn/cgi-bin/get_challenge",
+		url_login_api = "https://portal.ucas.ac.cn/cgi-bin/srun_portal",
 		n = "200",
 		vtype = "1",
 		acid = "1",
@@ -43,6 +43,14 @@ class LoginManager:
 		self.get_token()
 		self.get_login_responce()
 
+	def logout(self, username, password):
+		self.username = username
+		self.password = password
+
+		self.get_ip()
+		self.get_token()
+		self.get_logout_responce()
+
 	def get_ip(self):
 		print("Step1: Get local ip returned from srun server.")
 		self._get_login_page()
@@ -56,11 +64,19 @@ class LoginManager:
 		print("----------------")
 
 	def get_login_responce(self):
-		print("Step3: Loggin and resolve response.")
+		print("Step3: Login and resolve response.")
 		self._generate_encrypted_login_info()
 		self._send_login_info()
 		self._resolve_login_responce()
-		print("The loggin result is: " + self._login_result)
+		print("The login result is: " + self._login_result)
+		print("----------------")
+
+	def get_logout_responce(self):
+		print("Step3: Logout and resolve response.")
+		self._generate_encrypted_login_info()
+		self._send_logout_info()
+		self._resolve_login_responce()
+		print("The logout result is: " + self._login_result)
 		print("----------------")
 
 	def _is_defined(self, varname):
@@ -89,7 +105,8 @@ class LoginManager:
 		errorinfo = "Failed to resolve IP"
 	)
 	def _resolve_ip_from_login_page(self):
-		self.ip = re.search('id="user_ip" value="(.*?)"', self._page_response.text).group(1)
+		self.ip = re.search('ip.*: "(.*?)",', self._page_response.text).group(1)
+		print('Get IP: '+self.ip)
 
 	@checkip
 	@infomanage(
@@ -103,7 +120,7 @@ class LoginManager:
 		The 'get_challenge' request aims to ask the server to generate a token
 		"""
 		params_get_challenge = {
-			"callback": "jsonp1583251661367", # This value can be any string, but cannot be absent
+			"callback": "jQuery112406418856176696568_1627808749087", # This value can be any string, but cannot be absent
 			"username": self.username,
 			"ip": self.ip
 		}
@@ -195,7 +212,20 @@ class LoginManager:
 			'type': self.vtype
 		}
 		self._login_responce = requests.get(self.url_login_api, params=login_info_params, headers=header)
-	
+	def _send_logout_info(self):
+		login_info_params = {
+			'callback': 'jsonp1583251661368', # This value can be any string, but cannot be absent
+			'action':'logout',
+			'username': self.username,
+			'password': self.encrypted_md5,
+			'ac_id': self.ac_id,
+			'ip': self.ip,
+			'info': self.encrypted_info,
+			'chksum': self.encrypted_chkstr,
+			'n': self.n,
+			'type': self.vtype
+		}
+		self._login_responce = requests.get(self.url_login_api, params=login_info_params, headers=header)
 	@checkvars(
 		varlist = "_login_responce",
 		errorinfo = "Need _login_responce. Run _send_login_info in advance"
@@ -206,4 +236,4 @@ class LoginManager:
 		errorinfo = "Cannot resolve login result. Maybe the srun response format is changed"
 	)
 	def _resolve_login_responce(self):
-		self._login_result = re.search('"suc_msg":"(.*?)"', self._login_responce.text).group(1)
+		self._login_result = re.search('"res":"(.*?)"', self._login_responce.text).group(1)
